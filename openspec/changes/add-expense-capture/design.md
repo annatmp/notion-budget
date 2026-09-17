@@ -97,7 +97,11 @@ This is less code *and* a stronger position than a shared passphrase: no shared 
 
 **The origin must not be reachable directly.** A proxy is only a boundary if traffic cannot go around it. Access forwards an identity header, and trusting that header alone is the classic failure of this setup: anyone who can reach the origin can set it themselves. Two things are required, not one:
 
-1. The app verifies the `CF-Authorization` JWT on **every** request against the Access application's public keys — signature, audience and expiry. The identity header is never trusted on its own.
+1. The app verifies the **`Cf-Access-Jwt-Assertion` request header** on **every** request — signature, audience and expiry — and never trusts the plain identity header on its own. Identity comes from the verified token's payload, not from `Cf-Access-Authenticated-User-Email`.
+
+   It is deliberately *not* the `CF_Authorization` cookie. Cloudflare does not guarantee the cookie is passed, and an installed iOS PWA has its own cookie jar — so the cookie is the carrier most likely to be missing on the iPhone, producing an intermittent, per-device refusal that looks like the app is broken for no reason. The header, by contrast, is added to every request Access forwards.
+
+   Keys are fetched from `https://<team-domain>/cdn-cgi/access/certs` and matched by the token's `kid`, rather than pinned. Access rotates its signing key every six weeks and retires the previous one seven days later, so a pinned key would begin refusing both owners about six weeks after deployment — silently, and at exactly the point where nobody is in a position to debug it.
 2. The origin accepts traffic only from Cloudflare — via a Cloudflare Tunnel by preference, so the host needs no inbound public port at all, otherwise an origin firewall restricted to Cloudflare addresses.
 
 Either one alone leaves a bypass. A local development bypass is acceptable only behind an explicit flag that refuses to start under production configuration.
@@ -142,6 +146,8 @@ Config carries the two data source IDs, the exact property names, the category l
 
 **Identity header trusted without the JWT** → The single most likely way to get this deployment wrong, and it fails open rather than closed, so nothing visibly breaks. Both halves of the decision above — JWT verification *and* a locked origin — must be verified independently, because either alone looks like it works.
 
+**The cookie is not the header** → Access delivers the same JWT as a `Cf-Access-Jwt-Assertion` request header and a `CF_Authorization` cookie, and only the header is guaranteed. Verifying the cookie would refuse requests Access had already authenticated — intermittently, and per device, because an installed iOS PWA has its own cookie jar. The same mechanism as "Installing after logging in loses the session", and equally hard to diagnose from Australia.
+
 **Single instance is a single point of failure** → Accepted. If the host is down, the user writes the spend in Notion by hand, as they do today.
 
 ## Migration Plan
@@ -149,9 +155,11 @@ Config carries the two data source IDs, the exact property names, the category l
 Greenfield — no data migration, no existing users, nothing to roll back into.
 
 Deployment sequence:
-1. Create a Notion internal integration; share **both** the `💸 Budget` and Spending databases with it — and **only** those two. Do not share the parent `AUSTRALIA` page: sharing a page cascades to its children and would hand the token the entire trip workspace. This is the only mitigation on this page that still helps if the host itself is compromised and the token is taken.
-2. Verify against a scratch duplicate of both databases first. The specs forbid touching existing rows, but the first write should not be into the live trip budget.
-3. Deploy, set the passphrase, install the PWA to the phone home screen, log one real spend end to end before relying on it.
+1. Build and test locally with the development auth bypass on. Cloudflare is a deployment-time concern: Access exists to prove identity to a *reachable* origin, so the two Access values are required by configuration only while the bypass is off. A prototype therefore needs no Cloudflare account, no domain and no tunnel.
+2. Create a Notion internal integration; share **both** the `💸 Budget` and Spending databases with it — and **only** those two. Do not share the parent `AUSTRALIA` page: sharing a page cascades to its children and would hand the token the entire trip workspace. This is the only mitigation on this page that still helps if the host itself is compromised and the token is taken.
+3. Verify against a scratch duplicate of both databases first. The specs forbid touching existing rows, but the first write should not be into the live trip budget.
+4. Stand up the Cloudflare Tunnel and place an Access application in front of the hostname, restricted to the two owners' identities, with the session duration set to the length of the trip. Do this before the host is reachable from outside: a published tunnel route is open to the internet until the Access application exists in front of it.
+5. Deploy, turn the bypass off and supply the two Access values, install the PWA to the phone home screen, and log one real spend end to end before relying on it.
 
 Rollback is deleting the deployment; the Notion data stands on its own.
 
