@@ -14,8 +14,8 @@
 
 ## 2. Notion integration
 
-- [ ] 2.1 Add the Notion client pinned to `Notion-Version: 2025-09-03` or later, and verify against the live API that a `data_source_id`-scoped query of the Budget data source returns rows (a `database_id`-scoped call is ambiguous for this database — see design.md, Context)
-- [ ] 2.2 Implement reading Budget line items as `{id, name, category}`; verify against the live Budget data source that all ~45 lines are returned with their categories populated
+- [x] 2.1 Add the Notion client pinned to `Notion-Version: 2025-09-03` or later, and verify against the live API that a `data_source_id`-scoped query of the Budget data source returns rows (a `database_id`-scoped call is ambiguous for this database — see design.md, Context)
+- [x] 2.2 Implement reading Budget line items as `{id, name, category}`; verify against the live Budget data source that all ~45 lines are returned with their categories populated
 - [ ] 2.3 Implement creating a Spending row (title, price, currency, date, Budget relation), never writing the read-only `AUS`/`EUR` formula properties; verify against a **scratch duplicate** of the Spending database that a row is created with every field set and the relation resolving
 - [ ] 2.4 Implement creating a Budget line item (`Item`, `Category`); verify against the scratch duplicate that the created row carries the exact category option name
 - [x] 2.5 Map Notion API failures (unreachable, unauthorised, rejected write, deleted relation target) onto distinct application errors; verify unit tests assert each maps to its own error rather than a generic failure (`notion-integration` — "Budget data source unreachable", "Write fails")
@@ -36,7 +36,7 @@
 ## 4. Draft state and the confirmation gate
 
 - [x] 4.1 Implement the in-memory draft store keyed by client-generated draft ID with a TTL, holding the draft plus `createdBudgetLineId` and `writtenSpendingRowId`; verify unit tests for storage, retrieval and expiry
-- [ ] 4.2 Implement the capture endpoints (image and text) returning a draft for review and writing nothing; verify a test asserts no Notion write call occurs during capture (`expense-review` — "Nothing is written without explicit confirmation")
+- [x] 4.2 Implement the capture endpoints (image and text) returning a draft for review and writing nothing; verify a test asserts no Notion write call occurs during capture (`expense-review` — "Nothing is written without explicit confirmation")
 - [x] 4.3 Implement draft editing of description, amount, currency, date and Budget line without re-running extraction; verify a test that editing one field leaves the others untouched and triggers no model call (`expense-review` — "Every field is editable before confirmation", "Edits do not re-trigger extraction")
 - [ ] 4.4 Implement confirm: create the accepted Budget line first where applicable, then the Spending row related to it, committing the user's edited values; verify against the scratch duplicate that both rows appear correctly related (`notion-integration` — "Create an accepted budget line before relating to it")
 - [x] 4.5 Implement discard, clearing the draft with nothing written; verify a test asserts no write call and the draft is gone
@@ -47,10 +47,10 @@
 ## 5. Access control and cost limits
 
 - [ ] 5.1 Put the deployment behind Cloudflare Access restricted to the two owners' identities, with the session duration set to the length of the trip; verify an unauthenticated request is challenged, a non-listed identity is refused, and both owners can be signed in at the same time without either displacing the other
-- [ ] 5.2 Verify the `Cf-Access-Jwt-Assertion` request header server-side on every request — signature, audience and expiry — against the keys fetched from `<team-domain>/cdn-cgi/access/certs`, matching the token's `kid` rather than pinning a key, since Access rotates its signing key every six weeks; verify tests for a valid token, an expired token, a wrong-audience token, a request carrying only `Cf-Access-Authenticated-User-Email` with no valid JWT, which MUST be refused, and a token signed by a rotated-out key being accepted once the new JWKS is fetched (`notion-integration` — "Access is restricted to authorised identities"; design.md — "The origin must not be reachable directly")
+- [x] 5.2 Verify the `Cf-Access-Jwt-Assertion` request header server-side on every request — signature, audience and expiry — against the keys fetched from `<team-domain>/cdn-cgi/access/certs`, matching the token's `kid` rather than pinning a key, since Access rotates its signing key every six weeks; verify tests for a valid token, an expired token, a wrong-audience token, a request carrying only `Cf-Access-Authenticated-User-Email` with no valid JWT, which MUST be refused, and a token signed by a rotated-out key being accepted once the new JWKS is fetched (`notion-integration` — "Access is restricted to authorised identities"; design.md — "The origin must not be reachable directly")
 - [ ] 5.3 Lock the origin so it is reachable only through Cloudflare, preferring a Cloudflare Tunnel so the host exposes no inbound public port; verify that a direct request to the origin address fails from outside Cloudflare
 - [ ] 5.4 Gate the local development auth bypass behind an explicit flag that refuses to start under production configuration; verify startup fails when the bypass is enabled in a production config, and that the two Access values are required only while the bypass is off — so a prototype boots with no Cloudflare values at all
-- [ ] 5.5 Rate-limit the capture endpoints per identity with a daily ceiling well above two people logging a trip; verify the ceiling triggers, returns a clear message rather than a generic error, and is recorded somewhere visible (design.md — "Spending limits on the model endpoints")
+- [x] 5.5 Rate-limit the capture endpoints per identity with a daily ceiling well above two people logging a trip; verify the ceiling triggers, returns a clear message rather than a generic error, and is recorded somewhere visible (design.md — "Spending limits on the model endpoints")
 - [ ] 5.6 Verify credentials never reach the client: assert no Notion or DeepSeek key appears in any built client bundle or API response body (`notion-integration` — "Credentials stay server-side")
 
 ## 6. PWA client
