@@ -69,6 +69,8 @@ export type DraftMatch =
   | {
       kind: 'existing';
       lineId: string;
+      /** The line's name as read at extraction time, so review can name it without a re-read. */
+      lineName: string;
       confidence: Confidence;
       reason: string;
       alternatives: BudgetLineAlternative[];

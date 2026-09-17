@@ -100,8 +100,9 @@ function resolveMatch(match: ModelResponse['match'], context: ExtractionContext)
     return { kind: 'proposed', name: match.name, category: match.category, reason: match.reason };
   }
 
-  const known = new Set(context.budgetLines.map((line) => line.id));
-  if (!known.has(match.lineId)) {
+  const byId = new Map(context.budgetLines.map((line) => [line.id, line]));
+  const matched = byId.get(match.lineId);
+  if (matched === undefined) {
     // Matching is restricted to lines that exist at the time of matching, so a
     // line id that is not in the list is not a match however confident it looks.
     throw new ExtractionError(
@@ -112,10 +113,11 @@ function resolveMatch(match: ModelResponse['match'], context: ExtractionContext)
 
   return {
     kind: 'existing',
-    lineId: match.lineId,
+    lineId: matched.id,
+    lineName: matched.name,
     confidence: match.confidence,
     reason: match.reason,
-    alternatives: match.alternatives.filter((alternative) => known.has(alternative.lineId)),
+    alternatives: match.alternatives.filter((alternative) => byId.has(alternative.lineId)),
   };
 }
 

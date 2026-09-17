@@ -200,6 +200,7 @@ describe('budget line matching', () => {
     expect(draft.match).toEqual({
       kind: 'existing',
       lineId: 'line-sydney',
+      lineName: 'Food Sydney',
       confidence: 'medium',
       reason: 'Sydney dining matches the Food Sydney line',
       alternatives: [{ lineId: 'line-melbourne', reason: 'Also a food line' }],
