@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ConfigError,
   configKeys,
+  DEFAULT_CAPTURE_DAILY_LIMIT,
   isConfiguredCategory,
   isConfiguredCurrency,
   MINIMUM_NOTION_VERSION,
@@ -52,13 +53,124 @@ describe('valid configuration', () => {
     const config = parseConfig(env);
 
     expect(config.appEnv).toBe('development');
-    expect(config.access.devBypass).toBe(false);
+    expect(config.access.mode).toBe('access');
   });
 
   it('reads DEV_AUTH_BYPASS as a boolean rather than a truthy string', () => {
     // `z.coerce.boolean()` would read the string "false" as true.
-    expect(parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'false' }).access.devBypass).toBe(false);
-    expect(parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true' }).access.devBypass).toBe(true);
+    expect(parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'false' }).access.mode).toBe('access');
+    expect(parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true' }).access.mode).toBe('bypass');
+  });
+});
+
+describe('a prototype with no Cloudflare account yet', () => {
+  it('starts with the bypass on and no Access values at all', () => {
+    // The whole point of the bypass: Cloudflare is a deployment-time concern, so
+    // building the prototype does not require an account, a domain or a tunnel.
+    const env = validEnv();
+    env.DEV_AUTH_BYPASS = 'true';
+    env.CF_ACCESS_TEAM_DOMAIN = '';
+    env.CF_ACCESS_AUD = '';
+
+    const config = parseConfig(env);
+
+    expect(config.access).toEqual({ mode: 'bypass' });
+  });
+
+  it('requires both Access values once the bypass is off', () => {
+    const withoutTeamDomain = { ...validEnv(), CF_ACCESS_TEAM_DOMAIN: '' };
+    const withoutAudience = { ...validEnv(), CF_ACCESS_AUD: '' };
+
+    expect(() => parseConfig(withoutTeamDomain)).toThrow(/CF_ACCESS_TEAM_DOMAIN/);
+    expect(() => parseConfig(withoutAudience)).toThrow(/CF_ACCESS_AUD/);
+  });
+
+  it('says how to satisfy the requirement', () => {
+    const env = { ...validEnv(), CF_ACCESS_TEAM_DOMAIN: '', CF_ACCESS_AUD: '' };
+
+    expect(() => parseConfig(env)).toThrow(/unless DEV_AUTH_BYPASS=true/);
+  });
+});
+
+describe('the local auth bypass', () => {
+  it('is carried into the config as a mode, not a flag beside two empty strings', () => {
+    const config = parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true' });
+
+    expect(config.access.mode).toBe('bypass');
+    expect(config.access).not.toHaveProperty('teamDomain');
+  });
+
+  it('refuses to start under a production APP_ENV', () => {
+    // The one failure that looks like success: the app would accept requests
+    // whose identity it has never verified.
+    expect(() =>
+      parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true', APP_ENV: 'production' }),
+    ).toThrow(/DEV_AUTH_BYPASS/);
+  });
+
+  it('names the reason rather than just the field', () => {
+    expect(() =>
+      parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true', APP_ENV: 'production' }),
+    ).toThrow(/unverified requests/);
+  });
+
+  it('is allowed in development and test', () => {
+    expect(() =>
+      parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true', APP_ENV: 'development' }),
+    ).not.toThrow();
+    expect(() =>
+      parseConfig({ ...validEnv(), DEV_AUTH_BYPASS: 'true', APP_ENV: 'test' }),
+    ).not.toThrow();
+  });
+
+  it('leaves a bypassed config without Access values usable at the default ceiling', () => {
+    const env = validEnv();
+    env.DEV_AUTH_BYPASS = 'true';
+    env.CF_ACCESS_TEAM_DOMAIN = '';
+    env.CF_ACCESS_AUD = '';
+    delete env.CAPTURE_DAILY_LIMIT;
+
+    const config = parseConfig(env);
+
+    expect(config.captureDailyLimit).toBe(DEFAULT_CAPTURE_DAILY_LIMIT);
+  });
+});
+
+describe('the Access team domain', () => {
+  it('has its scheme filled in when it was left off', () => {
+    // The same value is compared against the token's `iss` claim, which always
+    // carries the scheme — so a bare hostname would never verify.
+    const config = parseConfig({
+      ...validEnv(),
+      CF_ACCESS_TEAM_DOMAIN: 'anna.cloudflareaccess.com',
+    });
+
+    expect(config.access).toEqual({
+      mode: 'access',
+      teamDomain: 'https://anna.cloudflareaccess.com',
+      audience: 'test-audience-tag',
+    });
+  });
+
+  it('is left alone when the scheme is already there', () => {
+    const config = parseConfig({
+      ...validEnv(),
+      CF_ACCESS_TEAM_DOMAIN: 'https://anna.cloudflareaccess.com',
+    });
+
+    expect(config.access).toMatchObject({ teamDomain: 'https://anna.cloudflareaccess.com' });
+  });
+
+  it('refuses a plain http team domain', () => {
+    expect(() =>
+      parseConfig({ ...validEnv(), CF_ACCESS_TEAM_DOMAIN: 'http://anna.cloudflareaccess.com' }),
+    ).toThrow(/CF_ACCESS_TEAM_DOMAIN/);
+  });
+
+  it('refuses something that is not a URL at all', () => {
+    expect(() => parseConfig({ ...validEnv(), CF_ACCESS_TEAM_DOMAIN: 'not a domain' })).toThrow(
+      /CF_ACCESS_TEAM_DOMAIN/,
+    );
   });
 });
 
@@ -74,7 +186,6 @@ describe('a config missing a required value', () => {
     'DEEPSEEK_API_KEY',
     'DEEPSEEK_MODEL_ID',
     'CF_ACCESS_AUD',
-    'CAPTURE_DAILY_LIMIT',
   ])('names %s in the error', (key) => {
     const env = validEnv();
     delete env[key];

@@ -61,6 +61,46 @@ const timezone = required.refine((value) => {
   }
 }, 'must be a valid IANA time zone, such as Australia/Melbourne');
 
+/**
+ * A positive whole number, falling back when unset.
+ *
+ * Not a bare `z.coerce.number()` with a default: `normalise` gives every key an
+ * empty string, and coercing "" yields 0, so the default would never apply.
+ */
+const positiveInteger = (fallback: number) =>
+  z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === '' || (Number.isInteger(Number(value)) && Number(value) > 0),
+      'must be a positive whole number',
+    )
+    .transform((value) => (value === '' ? fallback : Number(value)));
+
+/** Far above two people logging a trip, far below anything that costs real money. */
+export const DEFAULT_CAPTURE_DAILY_LIMIT = 200;
+
+/**
+ * The Access team domain, with its scheme filled in if it was left off.
+ *
+ * The scheme is not cosmetic: the same value is compared against the token's
+ * `iss` claim, which is always `https://<team>.cloudflareaccess.com`, and is the
+ * base of the JWKS URL. A value without the scheme would fail to verify every
+ * token, so it is normalised here rather than left as a trap.
+ */
+const teamDomain = z
+  .string()
+  .trim()
+  .transform((value) =>
+    value === '' || value.startsWith('http://') || value.startsWith('https://')
+      ? value
+      : `https://${value}`,
+  )
+  .refine(
+    (value) => value === '' || (URL.canParse(value) && value.startsWith('https://')),
+    'must be a Cloudflare Access team domain, such as https://your-team.cloudflareaccess.com',
+  );
+
 // --- Raw environment schema -------------------------------------------------
 
 export const envSchema = z.object({
@@ -88,11 +128,14 @@ export const envSchema = z.object({
   DEEPSEEK_API_KEY: required,
   DEEPSEEK_MODEL_ID: required,
 
-  // Access control
-  CF_ACCESS_TEAM_DOMAIN: required,
-  CF_ACCESS_AUD: required,
+  // Access control. The two Cloudflare values are required only when the local
+  // bypass is off — see the superRefine below. Running the prototype with
+  // DEV_AUTH_BYPASS=true needs neither, which is what lets Cloudflare be added
+  // at deployment time instead of up front.
+  CF_ACCESS_TEAM_DOMAIN: teamDomain,
+  CF_ACCESS_AUD: z.string().trim(),
   DEV_AUTH_BYPASS: booleanish,
-  CAPTURE_DAILY_LIMIT: z.coerce.number().int().positive('must be a positive whole number'),
+  CAPTURE_DAILY_LIMIT: positiveInteger(DEFAULT_CAPTURE_DAILY_LIMIT),
 
   // Runtime
   APP_ENV: z
@@ -108,6 +151,39 @@ const configSchema = envSchema.superRefine((env, ctx) => {
       code: 'custom',
       path: ['DEFAULT_CURRENCY'],
       message: `must be one of the configured currencies (${env.NOTION_CURRENCIES.join(', ')})`,
+    });
+  }
+
+  // Cloudflare Access is what proves a caller's identity, and the app trusts
+  // nothing else. With the bypass on, it is not needed at all — which is how a
+  // local prototype runs with no Cloudflare account in existence.
+  if (!env.DEV_AUTH_BYPASS) {
+    if (env.CF_ACCESS_TEAM_DOMAIN === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CF_ACCESS_TEAM_DOMAIN'],
+        message: 'is required unless DEV_AUTH_BYPASS=true',
+      });
+    }
+    if (env.CF_ACCESS_AUD === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CF_ACCESS_AUD'],
+        message: 'is required unless DEV_AUTH_BYPASS=true',
+      });
+    }
+  }
+
+  // The bypass refuses to survive into a deployment: with it on, the app would
+  // accept requests whose identity it has not verified, which is the one
+  // failure that looks like success (task 5.4, and `design.md` — "The origin
+  // must not be reachable directly").
+  if (env.DEV_AUTH_BYPASS && env.APP_ENV === 'production') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DEV_AUTH_BYPASS'],
+      message:
+        'must be false when APP_ENV=production — otherwise the app accepts unverified requests',
     });
   }
 });
@@ -143,12 +219,12 @@ export type Config = {
   /** IANA zone used to resolve relative dates and "today". */
   timezone: string;
   deepseek: { apiKey: string; modelId: string };
-  access: {
-    teamDomain: string;
-    audience: string;
-    /** Local development only; refused under a production `APP_ENV`. */
-    devBypass: boolean;
-  };
+  /**
+   * How a caller's identity is established. Modelled as a choice rather than a
+   * flag plus two possibly-empty strings so that code which needs the verified
+   * values cannot accidentally read them while the bypass is on.
+   */
+  access: { mode: 'bypass' } | { mode: 'access'; teamDomain: string; audience: string };
   /** Daily per-identity ceiling on the capture endpoints. */
   captureDailyLimit: number;
   appEnv: AppEnv;
@@ -212,11 +288,9 @@ export function toConfig(env: z.infer<typeof envSchema>): Config {
       apiKey: env.DEEPSEEK_API_KEY,
       modelId: env.DEEPSEEK_MODEL_ID,
     },
-    access: {
-      teamDomain: env.CF_ACCESS_TEAM_DOMAIN,
-      audience: env.CF_ACCESS_AUD,
-      devBypass: env.DEV_AUTH_BYPASS,
-    },
+    access: env.DEV_AUTH_BYPASS
+      ? { mode: 'bypass' }
+      : { mode: 'access', teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_AUD },
     captureDailyLimit: env.CAPTURE_DAILY_LIMIT,
     appEnv: env.APP_ENV,
   };
