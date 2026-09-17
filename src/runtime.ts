@@ -1,10 +1,12 @@
+import { createIdentityResolver, type IdentityResolver } from '@/auth/identity';
 import { loadConfig } from '@/config';
-import { DEFAULT_DRAFT_TTL_MS, DraftStore } from '@/drafts/store';
 import { DraftService } from '@/drafts/service';
+import { DEFAULT_DRAFT_TTL_MS, DraftStore } from '@/drafts/store';
 import { DeepSeekClient } from '@/extract/client';
 import { createBudgetLine, readBudgetLines } from '@/notion/budget-lines';
 import { NotionClient } from '@/notion/client';
 import { createSpendingRow } from '@/notion/spending';
+import { DailyRateLimiter } from '@/ratelimit/limiter';
 
 /**
  * The composition root, and the only module that binds the Notion writers into
@@ -16,12 +18,26 @@ import { createSpendingRow } from '@/notion/spending';
  * and nowhere else. A test asserts the import graph, so a future shortcut that
  * grabs `createSpendingRow` from a request handler fails the build.
  */
-
 let service: DraftService | undefined;
+let resolver: IdentityResolver | undefined;
+let limiter: DailyRateLimiter | undefined;
 
 export function getDraftService(): DraftService {
   service ??= build();
   return service;
+}
+
+export function getIdentityResolver(): IdentityResolver {
+  resolver ??= createIdentityResolver(loadConfig());
+  return resolver;
+}
+
+export function getRateLimiter(): DailyRateLimiter {
+  if (limiter === undefined) {
+    const config = loadConfig();
+    limiter = new DailyRateLimiter(config.captureDailyLimit, { timezone: config.timezone });
+  }
+  return limiter;
 }
 
 function build(): DraftService {
@@ -71,7 +87,9 @@ function build(): DraftService {
   });
 }
 
-/** Drops the memoised service. A test seam. */
+/** Drops the memoised singletons. A test seam. */
 export function resetRuntime(): void {
   service = undefined;
+  resolver = undefined;
+  limiter = undefined;
 }

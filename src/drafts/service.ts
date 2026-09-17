@@ -125,6 +125,16 @@ export class DraftService {
   }
 
   /**
+   * Every current budget line, for the override picker.
+   *
+   * Read fresh rather than cached, so a line the other person created a moment
+   * ago is selectable immediately rather than after a TTL.
+   */
+  async listBudgetLines(): Promise<BudgetLine[]> {
+    return this.deps.readBudgetLines();
+  }
+
+  /**
    * Applies the user's edits.
    *
    * Deliberately does not re-run extraction: the user has already seen what the
