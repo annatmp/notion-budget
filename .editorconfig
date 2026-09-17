@@ -1,0 +1,23 @@
+# Keep editors consistent so diffs stay about behaviour, not whitespace.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css,scss,yml,yaml,md}]
+indent_style = space
+indent_size = 2
+
+# Shell needs tabs: `git` will not run a hook with mixed indentation problems,
+# and the pre-commit guard is POSIX sh.
+[*.sh]
+indent_style = tab
+
+[hooks/*]
+indent_style = tab
+
+[Makefile]
+indent_style = tab
