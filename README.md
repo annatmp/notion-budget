@@ -27,12 +27,12 @@ cp .env.example .env.local
 Then fill in `.env.local`. Every variable is described in `.env.example`; the
 groups are:
 
-| Group | What it covers |
-| --- | --- |
-| Notion binding | Integration token, API version, the two data source IDs, and the exact property names to read and write |
-| Budget vocabulary | Category list, currency options, default currency, trip timezone |
-| DeepSeek | API key and model ID |
-| Access control | Cloudflare Access team domain and audience, plus the local dev bypass and the daily capture ceiling |
+| Group             | What it covers                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| Notion binding    | Integration token, API version, the two data source IDs, and the exact property names to read and write |
+| Budget vocabulary | Category list, currency options, default currency, trip timezone                                        |
+| DeepSeek          | API key and model ID                                                                                    |
+| Access control    | Cloudflare Access team domain and audience, plus the local dev bypass and the daily capture ceiling     |
 
 The app validates all of this at startup and **refuses to start** if anything is
 missing, naming the value it needs. That is deliberate: a half-configured app
