@@ -1,0 +1,58 @@
+#!/bin/sh
+#
+# Pre-commit guard (task 1.3).
+#
+# Refuses a commit that stages an environment file or an obvious credential.
+# The Notion token grants write access to a live budget and the DeepSeek key is
+# billed, so a single accidental `git add .` is expensive enough to justify a
+# check that runs before the object is written into history.
+#
+# Installed through `core.hooksPath` — see the README. Deliberate bypass:
+# `git commit --no-verify`.
+
+set -eu
+
+red=$(printf '\033[31m')
+reset=$(printf '\033[0m')
+
+fail() {
+	reason=$1
+	shift
+	printf '\n%spre-commit: %s%s\n' "$red" "$reason" "$reset" >&2
+	for detail in "$@"; do
+		printf '  %s\n' "$detail" >&2
+	done
+	printf '\n' >&2
+	exit 1
+}
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# --- 1. Environment files --------------------------------------------------
+# `.env.example` is a template holding names and no values, so it passes.
+env_files=$(
+	printf '%s\n' "$staged" |
+		grep -E '(^|/)\.env($|\.)' |
+		grep -vE '(^|/)\.env\.example$' || true
+)
+
+if [ -n "$env_files" ]; then
+	fail "an environment file is staged" \
+		"$env_files" \
+		"Real values belong in .env.local, which .gitignore excludes."
+fi
+
+# --- 2. Credentials in staged content --------------------------------------
+# Notion integration tokens (`ntn_`, plus the legacy `secret_` prefix) and
+# OpenAI-compatible API keys (`sk-`), which is the shape DeepSeek issues.
+pattern='(ntn_|secret_)[A-Za-z0-9]{25,}|sk-[A-Za-z0-9_-]{20,}'
+
+matches=$(git grep --cached -n -I -E -e "$pattern" -- . ':(exclude)hooks/' || true)
+
+if [ -n "$matches" ]; then
+	fail "a credential is staged" \
+		"$matches" \
+		"Move it into .env.local and read it through config instead."
+fi
+
+exit 0
