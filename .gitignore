@@ -1,0 +1,35 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js build output
+/.next/
+/out/
+/build
+/dist
+
+# Test coverage
+/coverage
+
+# Environment files. Real values are never committed: `.env.example` is a
+# template holding names and descriptions only. See task 1.2.
+.env*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Editor and OS cruft
+.DS_Store
+.idea/
+
+# Misc
+*.pem
