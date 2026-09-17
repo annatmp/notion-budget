@@ -1,0 +1,46 @@
+schema: spec-driven
+
+# Project context. Shown to AI when creating artifacts.
+context: |
+  Personal budget-tracking PWA for a two-person Australia trip (one iPhone,
+  one Android). Photograph a receipt or type a spend in free text; it is
+  parsed, matched to a Notion budget line, reviewed by a human, and written
+  to Notion only on explicit confirmation. There is no silent-write path.
+
+  Stack: Next.js (App Router, TypeScript), Node runtime. Single always-on
+  instance, no autoscaling — draft state is in-memory. Reached through a
+  Cloudflare Tunnel, behind Cloudflare Access. The app implements no auth of
+  its own but verifies the CF-Authorization JWT on every request and must not
+  be reachable directly at its origin.
+
+  External services:
+  - Notion API. The target database has multiple data sources, so every call
+    is data_source_id-scoped and needs Notion-Version 2025-09-03 or later;
+    database_id alone is ambiguous. The integration is shared with only the
+    Budget and Spending databases, never their parent page.
+  - DeepSeek. Model `deepseek-flash` (V4.1-Flash) for both receipt vision and
+    free-text parsing — `deepseek-v4-pro` is text-only. Images are capped at
+    1024 tokens. OpenAI-compatible Chat Completions endpoint.
+
+  Conventions:
+  - Conventional commits (feat, fix, chore, docs, refactor, test).
+  - Secrets stay server-side and never reach the browser.
+  - The app appends to Notion; it never edits or deletes existing rows.
+  - Notion select option names are matched literally: EURO not EUR,
+    Accomodation not Accommodation.
+
+# Per-artifact rules (optional)
+# rules:
+#   proposal:
+#     - Keep proposals under 500 words
+
+operations:
+  apply:
+    guidance:
+      - Use conventional commits.
+      - Commit after each completed task, naming the task number and a short description in the message.
+      - Run typecheck, lint and tests before committing; never commit a failing build.
+      - Put the tasks.md checkbox update in the same commit as the work it describes.
+  archive:
+    guidance:
+      - Summarize the archive outcome before finishing.
