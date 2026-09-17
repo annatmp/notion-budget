@@ -16,10 +16,10 @@
 
 - [x] 2.1 Add the Notion client pinned to `Notion-Version: 2025-09-03` or later, and verify against the live API that a `data_source_id`-scoped query of the Budget data source returns rows (a `database_id`-scoped call is ambiguous for this database — see design.md, Context)
 - [x] 2.2 Implement reading Budget line items as `{id, name, category}`; verify against the live Budget data source that all ~45 lines are returned with their categories populated
-- [ ] 2.3 Implement creating a Spending row (title, price, currency, date, Budget relation), never writing the read-only `AUS`/`EUR` formula properties; verify against a **scratch duplicate** of the Spending database that a row is created with every field set and the relation resolving
-- [ ] 2.4 Implement creating a Budget line item (`Item`, `Category`); verify against the scratch duplicate that the created row carries the exact category option name
+- [x] 2.3 Implement creating a Spending row (title, price, currency, date, Budget relation), never writing the read-only `AUS`/`EUR` formula properties; verify against a **scratch duplicate** of the Spending database that a row is created with every field set and the relation resolving
+- [x] 2.4 Implement creating a Budget line item (`Item`, `Category`); verify against the scratch duplicate that the created row carries the exact category option name
 - [x] 2.5 Map Notion API failures (unreachable, unauthorised, rejected write, deleted relation target) onto distinct application errors; verify unit tests assert each maps to its own error rather than a generic failure (`notion-integration` — "Budget data source unreachable", "Write fails")
-- [ ] 2.6 Verify no pre-existing row is ever modified or deleted: exercise the write paths against the scratch duplicate and assert row count and contents of pre-existing rows are unchanged (`notion-integration` — "Existing data is untouched")
+- [x] 2.6 Verify no pre-existing row is ever modified or deleted: exercise the write paths against the scratch duplicate and assert row count and contents of pre-existing rows are unchanged (`notion-integration` — "Existing data is untouched")
 
 ## 3. Extraction and matching
 
@@ -38,7 +38,7 @@
 - [x] 4.1 Implement the in-memory draft store keyed by client-generated draft ID with a TTL, holding the draft plus `createdBudgetLineId` and `writtenSpendingRowId`; verify unit tests for storage, retrieval and expiry
 - [x] 4.2 Implement the capture endpoints (image and text) returning a draft for review and writing nothing; verify a test asserts no Notion write call occurs during capture (`expense-review` — "Nothing is written without explicit confirmation")
 - [x] 4.3 Implement draft editing of description, amount, currency, date and Budget line without re-running extraction; verify a test that editing one field leaves the others untouched and triggers no model call (`expense-review` — "Every field is editable before confirmation", "Edits do not re-trigger extraction")
-- [ ] 4.4 Implement confirm: create the accepted Budget line first where applicable, then the Spending row related to it, committing the user's edited values; verify against the scratch duplicate that both rows appear correctly related (`notion-integration` — "Create an accepted budget line before relating to it")
+- [x] 4.4 Implement confirm: create the accepted Budget line first where applicable, then the Spending row related to it, committing the user's edited values; verify against the scratch duplicate that both rows appear correctly related (`notion-integration` — "Create an accepted budget line before relating to it")
 - [x] 4.5 Implement discard, clearing the draft with nothing written; verify a test asserts no write call and the draft is gone
 - [x] 4.6 Implement idempotent retry: a confirm on a draft already holding a `writtenSpendingRowId` returns that row without writing again, and a retry after a partial failure reuses `createdBudgetLineId`; verify tests for both, asserting exactly one Spending row and one Budget line result (`expense-review` — "Retry after failure", `notion-integration` — "Expense write fails after the line was created")
 - [x] 4.7 Implement failure reporting that preserves the draft with its edits on a failed write; verify a test that after an injected Notion failure the draft is retrievable with the user's edits intact (`expense-review` — "Failed write")
