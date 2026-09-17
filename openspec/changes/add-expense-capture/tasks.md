@@ -2,15 +2,15 @@
 
 ## 1. Repository hygiene and project scaffolding
 
-- [ ] 1.1 Write `.gitignore` before anything that creates ignorable files — `node_modules/`, `.env*` (excepting `.env.example`), `.next/`, build output, coverage, `.DS_Store`; verify `git status` reports a clean tree immediately after a dependency install
-- [ ] 1.2 Add `.env.example` listing every variable with a description and no real values; verify it names exactly the variables the config validation requires, so the two cannot drift
-- [ ] 1.3 Add a pre-commit guard that refuses a commit containing a `.env` file or an obvious credential pattern; verify it blocks a staged file holding a dummy Notion or DeepSeek key and allows an ordinary commit
+- [x] 1.1 Write `.gitignore` before anything that creates ignorable files — `node_modules/`, `.env*` (excepting `.env.example`), `.next/`, build output, coverage, `.DS_Store`; verify `git status` reports a clean tree immediately after a dependency install
+- [x] 1.2 Add `.env.example` listing every variable with a description and no real values; verify it names exactly the variables the config validation requires, so the two cannot drift
+- [x] 1.3 Add a pre-commit guard that refuses a commit containing a `.env` file or an obvious credential pattern; verify it blocks a staged file holding a dummy Notion or DeepSeek key and allows an ordinary commit
 - [ ] 1.4 Pin the Node version (`.nvmrc` and `engines`) and add `.editorconfig` plus a formatter config; verify the pinned version matches what the deployment host runs and that a format check passes on a clean tree
 - [ ] 1.5 Add a README covering what the app is, the variables it needs, and how to run it locally; verify someone can follow it from a fresh clone without reading the planning artifacts
-- [ ] 1.6 Initialise the Next.js (App Router, TypeScript) project with a Node runtime target; verify `npm run dev` serves a page, `npm run build` succeeds, and the scaffolder has not replaced or narrowed the `.gitignore` from 1.1
-- [ ] 1.7 Add a test runner and lint/typecheck scripts, and verify `npm test`, `npm run lint` and `npm run typecheck` all run clean on the empty project
-- [ ] 1.8 Define the budget config schema (both data source IDs, property names, category list, currency options, default currency, timezone, model ID) with parse-time validation; verify unit tests cover a valid config, a config missing a required value, and a config with an unknown category
-- [ ] 1.9 Load and validate config at startup so the app refuses to start on incomplete config with a message naming the missing value; verify by starting with a deliberately incomplete env and asserting the error names the field (`notion-integration` — "Budget binding is configuration")
+- [x] 1.6 Initialise the Next.js (App Router, TypeScript) project with a Node runtime target; verify `npm run dev` serves a page, `npm run build` succeeds, and the scaffolder has not replaced or narrowed the `.gitignore` from 1.1
+- [x] 1.7 Add a test runner and lint/typecheck scripts, and verify `npm test`, `npm run lint` and `npm run typecheck` all run clean on the empty project
+- [x] 1.8 Define the budget config schema (both data source IDs, property names, category list, currency options, default currency, timezone, model ID) with parse-time validation; verify unit tests cover a valid config, a config missing a required value, and a config with an unknown category
+- [x] 1.9 Load and validate config at startup so the app refuses to start on incomplete config with a message naming the missing value; verify by starting with a deliberately incomplete env and asserting the error names the field (`notion-integration` — "Budget binding is configuration")
 
 ## 2. Notion integration
 
