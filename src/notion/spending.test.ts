@@ -70,9 +70,9 @@ describe('writing a confirmed expense', () => {
 
     await createSpendingRow(client, binding, expense);
 
-    expect((requests[0]?.body as { parent: { data_source_id: string } }).parent.data_source_id).toBe(
-      binding.dataSourceId,
-    );
+    expect(
+      (requests[0]?.body as { parent: { data_source_id: string } }).parent.data_source_id,
+    ).toBe(binding.dataSourceId);
   });
 
   it('sends an amount as a number rather than a string', async () => {

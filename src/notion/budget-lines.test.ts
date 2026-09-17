@@ -100,9 +100,7 @@ describe('creating a budget line', () => {
   it('passes the category through verbatim, including the budget\u2019s own spelling', async () => {
     // `Accomodation` is how the live budget spells it. "Correcting" it here
     // would make the write fail against a select option that does not exist.
-    const { client, requests } = setup([
-      { body: notionRow('new-line', 'Hostel', 'Accomodation') },
-    ]);
+    const { client, requests } = setup([{ body: notionRow('new-line', 'Hostel', 'Accomodation') }]);
 
     await createBudgetLine(client, binding, { name: 'Hostel', category: 'Accomodation' });
 
